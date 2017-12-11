@@ -1,0 +1,127 @@
+---
+title: "Machine_learningAssignment"
+output: html_document
+---
+## Overview
+
+ The main goal of the project is to predict the manner in which 6 participants performed some exercise as described below. This is the ???classe??? variable in the training set. The machine learning algorithm described here is applied to the 20 test cases available in the test data and the predictions are submitted in appropriate format to the Course Project Prediction Quiz for automated grading.
+
+## Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3xsbS5bVX
+
+##a) Dataset Overview
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from http://groupware.les.inf.puc-rio.br/har. 
+
+## Environment setup
+```{r}
+rm(list = ls())
+getwd()
+#setwd("Desktop/DATA_SCIENCE specialization/P Machine Learning/Week 4/")
+library(caret)
+library(ggplot2)
+library(randomForest)
+library(rpart)
+set.seed(12345)
+
+```
+## Getting and Cleaning data:
+
+Downloading data from the given url and then loading data from the directory .Checking the data as the data contains th NA values so we have to remove those values .
+
+```{r}
+# Loading training and testing data from the given data set 
+train_data<-read.csv("training_data.csv",stringsAsFactors = FALSE)
+
+test_data<-read.csv("testing_data.csv",stringsAsFactors = FALSE)
+dim(train_data)
+```
+```{r}
+# Removing NAs from the test data and the training data 
+test_data<-test_data[ ,colSums(is.na(test_data))==0][8:59]
+
+features_test<-names(test_data)
+
+features_train<- names(train_data[,colSums(is.na(train_data)) == 0])
+
+
+train_data <- train_data[,c(features_test,"classe")]
+test_data<-test_data[,features_test]
+train_data$classe<-as.factor(train_data$classe)
+dim(train_data)
+```
+```{r}
+dim(test_data)
+```
+## Data partitioning
+ we will split our data into a training data set (60% of the total cases) and a testing data set (40% of the total cases; the latter should not be confused with the data in the pml-testing.csv file). This will allow us to estimate the out of sample error of our predictor.
+
+```{r }
+intrain<-createDataPartition(train_data$classe,p=0.6,list = FALSE)
+
+training<-train_data[intrain,]
+testing<-train_data[-intrain,]
+dim(training)
+```
+```{r}
+dim(testing)
+```
+
+## Random Forest Model
+Model is trained using the random forest model and calculated the accuracy of the model 
+
+```{r }
+controlRF <- trainControl(method="cv", number=3, verboseIter=FALSE)
+modFit <- train(classe ~ ., data=training, method="rf",
+                          trControl=controlRF)
+
+print(modFit)
+```
+```{r}
+yhat_modFit<-predict(modFit,newdata = testing)
+confusionMatrix(testing$classe,yhat_modFit)
+```
+#### Decision Tree Model
+```{r}
+model1<-rpart(classe~.,data =training,method = "class")
+plot(model1)
+text(model1)
+```
+
+
+
+```{r}
+yhat<-predict(model1,newdata=testing , type = "class")
+congMAt<-confusionMatrix(testing$classe , yhat)
+congMAt
+```
+
+# Gradient Bosting Model
+```{r}
+model2<-train(classe ~ ., data=training, method="gbm")
+
+yhat2<-predict(model2,newdata=testing)
+confusionMatrix(testing$classe , yhat2)
+```
+##Conclusion
+The accuracy of the 3 regression modeling methods above are:
+
+Random Forest : 0.9922 
+Decision Tree : 0.7181 
+GBM : 0.9646
+
+So the accuracy of the Random forest is the best .  
+Random Forest model will be applied to predict the 20 quiz results (test_data dataset) as shown below.
+```{r}
+predictTEST <- predict(modFit, newdata=test_data)
+predictTEST
+```
